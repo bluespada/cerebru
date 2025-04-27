@@ -48,8 +48,10 @@ func New(opt *Config) *CacheManager {
 	return manager
 }
 
+// Set adds a key-value pair to the cache. If the key already exists, it updates the value.
+// If the cache is full, it finds the least loaded shard to store the new entry.
+// The entry is set to expire after 12 hours by default if it is newly created.
 func (m *CacheManager) Set(key string, val interface{}) {
-
 	if m.enableDynamicShardScaling {
 		m.dynamicShardScaling()
 	}
@@ -98,6 +100,9 @@ func (m *CacheManager) Set(key string, val interface{}) {
 	shard.mut.Unlock()
 }
 
+// SetTTL adds a key-value pair to the cache with a specified time-to-live (TTL).
+// If the key already exists, it updates the value and the expiration time.
+// If the cache is full, it finds the least loaded shard to store the new entry.
 func (m *CacheManager) SetTTL(key string, val interface{}, ttl time.Duration) {
 	if m.enableDynamicShardScaling {
 		m.dynamicShardScaling()
@@ -148,6 +153,8 @@ func (m *CacheManager) SetTTL(key string, val interface{}, ttl time.Duration) {
 	shard.mut.Unlock()
 }
 
+// Get retrieves the value associated with the given key from the cache.
+// If the key exists and has not expired, it returns the value; otherwise, it returns nil.
 func (m *CacheManager) Get(key string) interface{} {
 	hashVal := m.jch.Hash(key)
 	shardIndex := hashVal % uint64(len(m.pool))
@@ -173,8 +180,9 @@ func (m *CacheManager) Get(key string) interface{} {
 	return nil
 }
 
+// Remove deletes the key-value pair associated with the given key from the cache.
+// It also removes the node from the eviction heap if it exists.
 func (m *CacheManager) Remove(key string) {
-
 	hashVal := m.jch.GetBucket(key)
 	shardIndex := hashVal % uint64(len(m.pool))
 	shard := m.pool[shardIndex]
