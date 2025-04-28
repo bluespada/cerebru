@@ -75,13 +75,11 @@ func (m *CacheManager) dynamicShardScaling() {
 	for _, shard := range m.pool {
 		if shard.size >= m.nodeCap-2 && shard.shardSize < m.maxCost {
 			addShardNeeded = true
-			break
 		}
-	}
-
-	for _, shard := range m.pool {
 		if shard.size <= m.nodeCap/4 && shard.size > 4 && shard.shardSize > m.maxCost {
 			removeShardNeeded = true
+		}
+		if addShardNeeded && removeShardNeeded {
 			break
 		}
 	}

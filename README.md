@@ -1,63 +1,66 @@
 # Cerebru
 
-An experimental in-memory caching library written in Go, originally developed for the internal projects. Cerebru focuses on high-performance cache management using touch-based TTL and dynamic sharding strategies to optimize memory usage and eviction.  
-While primarily intended for internal systems, it's made available under the MIT License for anyone needing a fast, fine-grained caching solution.
+**Cerebru** is an experimental in-memory caching library for Go, initially developed for internal projects.  
+It focuses on high-performance cache management using **touch-based TTL** eviction and **sharded linked lists** to optimize memory usage and entry eviction.
 
->[!IMPORTANT] 
-> This project is a work in progress. It is **not yet production-ready**, and documentation is currently incomplete. Use at your own discretion.
+> **Note:**  
+> This project is under active development and **is not yet production-ready**. Use at your own risk.
+
 ## Features
 
-- Dynamic Sharding  
-  Adjusts the number of shards based on usage patterns, allowing more flexible scaling under load.
+- **Sharded Cache Architecture**  
+  Data is partitioned across multiple shards to improve concurrency and reduce lock contention.
 
-- Efficient Lookup  
-  Optimized for maintaining a stable hit rate under various access patterns.
+- **Touch-based TTL Eviction**  
+  Entries are managed based on their last access time, with automatic expiration after a configurable TTL.
 
-- Optional Cleaner  
-  Background cleanup process for removing expired entries, designed to minimize performance impact.
+- **Optional Background Cleaner**  
+  An optional background process that periodically removes expired entries with minimal performance impact.
 
-- Minimal API Surface  
-  Straightforward API focused on simplicity and ease of use without unnecessary complexity.
+- **Minimal and Focused API**  
+  A straightforward API designed for general caching needs without unnecessary complexity.
 
-- Configurable Behavior  
-  Fully adjustable settings for shard capacity, node capacity, cleaner operation, and sharding strategy.
+- **Configurable Behavior**  
+  Fully customizable settings for shard count, entry capacity, TTLs, and cleaning strategies.
 
-- Open Source (MIT License)  
-  Available for public use under a permissive MIT license.
-
-
+- **Open Source (MIT License)**  
+  Freely available under the permissive MIT license.
 
 ## Quick Benchmark
 
-### Test Case
+### Test Scenario
 
-The provided test simulates a high-concurrency cache load, similar to what platforms like Google or Netflix might experience. Here’s a simplified explanation:
+The benchmark simulates a high-concurrency cache workload:
 
-- **Goal**: Mimic high traffic by simulating **500 million requests** with **2,000 concurrent workers**. This tests how well the cache handles real-world, high-volume requests.
-  
-- **How it works**: 
-  - **Cache Hits**: When a request for a key finds it in the cache.
-  - **Cache Misses**: When the key isn’t in the cache and gets added.
-  - Every 1,000th request sets a special cache value, simulating periodic updates.
+- **Requests**: 500 million cache operations
+- **Concurrency**: 2,000 concurrent workers
+- **Pattern**: A mixed-access pattern with periodic updates every 1,000 operations.
 
-- **Simulation Context**: The test models real-world traffic load seen by large-scale services, testing **cache efficiency** and **concurrency management** under heavy use.
+The goal is to evaluate:
+- **Cache efficiency** (hit and miss rates)
+- **Memory consumption**
+- **Garbage Collection overhead**
 
-This kind of test is useful for validating how a caching system will perform under the stress of millions of simultaneous requests, much like what you’d find in production environments at major tech companies.
+### Results
 
-Below are the benchmark results that show the difference in memory usage, **GC cycles**, and **hit rate** between the two scenarios:
+| Mode                     | Hit Rate  | Cache Hits      | Cache Misses     | Miss Rate        | Memory Allocated | System Memory | GC Cycles |
+|---------------------------|-----------|-----------------|------------------|------------------|------------------|---------------|-----------|
+| **Dynamic Sharding OFF**  | 95.97%    | 479,863,800     | 15,222,231       | 3.04%            | 35.96 MB         | 119.99 MB     | 1         |
+| **Dynamic Sharding ON**   | 99.25%    | 496,272,177     | 263,013          | 0.05%            | 162.59 MB        | 821.03 MB     | 2         |
 
+> **Interpretation:**  
+> - Enabling dynamic sharding improves the hit rate significantly but increases memory usage and GC cycles, making it suitable for workloads with fluctuating traffic.  
+> - Disabling dynamic sharding minimizes memory overhead and GC frequency, but results in a slightly lower hit rate, better suited for stable, predictable access patterns.
 
-| Mode                     | Hit Rate  | Cache Hit Count | Cache Miss Count | Cache Miss Rate | Memory Allocated | Total Heap Allocated | System Memory | Num GC Cycles |
-|--------------------------|-----------|-----------------|------------------|-----------------|------------------|----------------------|----------------|---------------|
-| **Dynamic Sharding OFF**  | 95.97%    | 479,863,800     | 15,222,231       | 3.04%           | 35.96 MB         | 35.96 MB            | 119.99 MB      | 1             |
-| **Dynamic Sharding ON**   | 99.25%    | 496,272,177     | 263,013          | 0.05%           | 162.59 MB        | 162.59 MB           | 821.03 MB      | 2             |
+## Project Status
 
+Cerebru is currently:
+- Stable for internal testing
+- Not yet validated in production environments
+- Subject to API and behavior changes as development progresses
 
-> **Note:**  
-> - **Dynamic Sharding ON** improves **hit rate** but increases **memory usage** and **GC cycles**. This is beneficial for applications with **unpredictable data** or **fluctuating traffic patterns** that require stable distribution and quick adaptation.  
-> - **Dynamic Sharding OFF** reduces **memory overhead** and **GC cycles**, but results in a **lower hit rate** and **higher miss rate**. It’s better suited for applications with **predictable access patterns** or **steady workloads**.
-> - The performance trade-offs will depend heavily on the application's **data volatility** and **request frequency**.
+Contributions, feedback, and experimentation are welcome.
 
+## License
 
-# License
 This project is licensed under the [MIT License](LICENSE).
