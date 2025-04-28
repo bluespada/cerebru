@@ -7,13 +7,10 @@ package cerebru
 
 import (
 	"container/heap"
-	"runtime"
 	"sync"
 
 	"github.com/bluespada/cerebru/internal/crypt"
 )
-
-var memState runtime.MemStats
 
 // CacheManager manages a pool of NodeShards for caching.
 // It handles shard creation, dynamic scaling, and node rebalancing.
@@ -29,7 +26,8 @@ type CacheManager struct {
 // addShard creates a new NodeShards instance and adds it to the pool.
 // If auto-cleaning is enabled, it starts the cleaner for the new shard.
 func (m *CacheManager) addShard() {
-	m.poolMut.Lock()
+	// m.poolMut.Lock()
+	// defer m.poolMut.Unlock()
 	shard := &NodeShards{
 		pool:         make(map[string]*Nodes),
 		head:         &Nodes{},
@@ -49,7 +47,6 @@ func (m *CacheManager) addShard() {
 	}
 
 	m.pool = append(m.pool, shard)
-	m.poolMut.Unlock()
 }
 
 // findLeastLoadedShard returns the shard with the least number of nodes.
@@ -69,6 +66,8 @@ func (m *CacheManager) findLeastLoadedShard() *NodeShards {
 
 // dynamicShardScaling checks the load of shards and adds or removes shards as needed.
 func (m *CacheManager) dynamicShardScaling() {
+	m.poolMut.Lock()
+	defer m.poolMut.Unlock()
 
 	var addShardNeeded bool
 	var removeShardNeeded bool

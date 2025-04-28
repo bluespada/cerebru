@@ -118,6 +118,7 @@ func (ns *NodeShards) cleanExpired() int {
 	expiredCount := 0
 
 	ns.mut.Lock()
+	defer ns.mut.Unlock()
 	for key, node := range ns.pool {
 		if node.expiredAt > 0 && node.expiredAt <= now {
 			ns.removeNode(node)
@@ -127,7 +128,6 @@ func (ns *NodeShards) cleanExpired() int {
 	}
 
 	if ns.evictionHeap == nil {
-		ns.mut.Unlock()
 		return expiredCount
 	}
 
@@ -137,7 +137,6 @@ func (ns *NodeShards) cleanExpired() int {
 			delete(ns.pool, evictedNode.(*Nodes).Key)
 		}
 	}
-	ns.mut.Unlock()
 	return expiredCount
 }
 
