@@ -31,7 +31,7 @@ type Nodes struct {
 	// was accessed or modified. This is useful for eviction policies.
 	lastUsed int64
 
-	// sizeOfvalue represents the size of the value stored in this node,
+	// nodeSize represents the size of the value stored in this node,
 	// which can be useful for managing memory and cache size limits.
-	sizeOfvalue uint64
+	nodeSize uint64
 }

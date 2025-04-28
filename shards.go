@@ -41,6 +41,8 @@ type NodeShards struct {
 	// nodeIndex is a map that associates each node with its index in the pool,
 	// allowing for efficient lookups and removals.
 	nodeIndex map[*Nodes]int
+
+	shardSize uint64
 }
 
 // addToHead adds a node to the head of the linked list in the NodeShards.
@@ -116,18 +118,16 @@ func (ns *NodeShards) cleanExpired() int {
 	expiredCount := 0
 
 	ns.mut.Lock()
-	defer ns.mut.Unlock()
-
 	for key, node := range ns.pool {
 		if node.expiredAt > 0 && node.expiredAt <= now {
 			ns.removeNode(node)
 			delete(ns.pool, key)
-			ns.size--
 			expiredCount++
 		}
 	}
 
 	if ns.evictionHeap == nil {
+		ns.mut.Unlock()
 		return expiredCount
 	}
 
@@ -135,10 +135,9 @@ func (ns *NodeShards) cleanExpired() int {
 		evictedNode := heap.Pop(ns.evictionHeap)
 		if evictedNode != nil {
 			delete(ns.pool, evictedNode.(*Nodes).Key)
-			ns.size--
 		}
 	}
-
+	ns.mut.Unlock()
 	return expiredCount
 }
 

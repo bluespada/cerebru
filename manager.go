@@ -7,10 +7,13 @@ package cerebru
 
 import (
 	"container/heap"
+	"runtime"
 	"sync"
 
 	"github.com/bluespada/cerebru/internal/crypt"
 )
+
+var memState runtime.MemStats
 
 // CacheManager manages a pool of NodeShards for caching.
 // It handles shard creation, dynamic scaling, and node rebalancing.
@@ -20,6 +23,7 @@ type CacheManager struct {
 	shardCap, nodeCap                            int
 	poolMut                                      sync.RWMutex
 	jch                                          *crypt.JCH
+	maxCost                                      uint64
 }
 
 // addShard creates a new NodeShards instance and adds it to the pool.
@@ -65,18 +69,19 @@ func (m *CacheManager) findLeastLoadedShard() *NodeShards {
 
 // dynamicShardScaling checks the load of shards and adds or removes shards as needed.
 func (m *CacheManager) dynamicShardScaling() {
+
 	var addShardNeeded bool
 	var removeShardNeeded bool
 
 	for _, shard := range m.pool {
-		if shard.size >= m.nodeCap-1 {
+		if shard.size >= m.nodeCap-2 && shard.shardSize < m.maxCost {
 			addShardNeeded = true
 			break
 		}
 	}
 
 	for _, shard := range m.pool {
-		if shard.size <= m.nodeCap/4 && len(m.pool) > 2 {
+		if shard.size <= m.nodeCap/4 && shard.size > 4 && shard.shardSize > m.maxCost {
 			removeShardNeeded = true
 			break
 		}
@@ -124,7 +129,9 @@ func (m *CacheManager) rebalanceNodes() {
 			allNodes = append(allNodes, node)
 		}
 
-		for key := range shard.pool {
+		for key, node := range shard.pool {
+			shard.evictionHeap.RemoveNode(node)
+			shard.removeNode(node)
 			delete(shard.pool, key)
 		}
 		shard.size = 0
@@ -139,8 +146,10 @@ func (m *CacheManager) rebalanceNodes() {
 
 		if shard.size >= shard.capacity {
 			shard.moveToTail()
+			shard.evictionHeap.RemoveNode(node)
+			shard.removeNode(node)
 		}
-
+		shard.shardSize += node.nodeSize
 		shard.pool[node.Key] = node
 		shard.addToHead(node)
 		shard.size++

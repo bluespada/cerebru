@@ -7,58 +7,59 @@ package main
 
 import (
 	"fmt"
-	"runtime"
-	"strconv"
-	"sync/atomic"
+	"time"
 
 	"github.com/bluespada/cerebru"
 )
 
 func main() {
+	// Initialize memory with configuration
 	mem := cerebru.New(&cerebru.Config{
-		EnableCleaner:         true,
-		EnableDynamicSharding: true,
-		ShardCap:              64,
-		NodeCap:               64,
+		// It is recommended to enable the cleaner to help
+		// clean up expired cache entries if you use TTL.
+		EnableCleaner: true,
+		// Enable this option if you are dealing with unpredictable
+		// cache entries and do not care about performance, but need
+		// stability with a higher cache hit rate.
+		EnableDynamicSharding: false,
+		// ShardCap defines the maximum number of shards that can be created.
+		// Each shard can help distribute the load and improve performance.
+		ShardCap: 8,
+		// NodeCap defines the maximum number of nodes that can be created
+		// within each shard. This helps in managing the data distribution
+		// and ensures that the system can scale effectively.
+		NodeCap: 8,
 	})
-	var (
-		totalHit  uint64
-		totalMiss uint64
+
+	// Set TTL for the key "key:totp"
+	// Remember that Cerebru's eviction policy is quite strict,
+	// so this key may be removed before it expires if there are
+	// abnormal write operations.
+	mem.SetTTL(
+		"key:totp",
+		"some-otp-ke",
+		uint64(len([]byte("some-otp-ke"))),
+		5*time.Second,
 	)
 
-	for i := 0; i < 50_000; i++ {
-		key := "key_2:" + strconv.Itoa(i)
-		val := "yanto-number" + strconv.Itoa(i)
-		mem.Set(key, val)
-		if res := mem.Get(key); res != nil {
-			atomic.AddUint64(&totalHit, 1)
-		} else {
-			atomic.AddUint64(&totalMiss, 1)
-		}
+	// Set data for the key "key:messages"
+	mem.Set(
+		"key:messages",
+		&struct {
+			Name string
+			Age  int
+		}{
+			Name: "Yanto",
+			Age:  12,
+		},
+		0, // If set to zero, when dynamic sharding is enabled, this key will be excluded from counting.
+	)
+
+	// Retrieve the value from the key "key:totp"
+	res := mem.Get("key:totp")
+
+	// Check if the result is not nil and print it
+	if res != nil {
+		fmt.Println(res)
 	}
-
-	// Final metrics after all tests
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
-
-	totalOps := totalHit + totalMiss
-	hitRate := (float64(totalHit) / float64(totalOps)) * 100
-	missRate := (float64(totalMiss) / float64(totalOps)) * 100
-
-	fmt.Printf("\n--- Benchmark Summary ---\n")
-	fmt.Printf("Total Ops: %d\n", totalOps)
-	fmt.Printf("Cache Hit: %d\n", totalHit)
-	fmt.Printf("Cache Miss: %d\n", totalMiss)
-	fmt.Printf("Hit Rate: %.2f%%\n", hitRate)
-	fmt.Printf("Miss Rate: %.2f%%\n", missRate)
-
-	fmt.Printf("\n--- Memory Stats ---\n")
-	fmt.Printf("Alloc = %v MiB\n", bToMb(memStats.Alloc))
-	fmt.Printf("TotalAlloc = %v MiB\n", bToMb(memStats.TotalAlloc))
-	fmt.Printf("Sys = %v MiB\n", bToMb(memStats.Sys))
-	fmt.Printf("NumGC = %v\n", memStats.NumGC)
-}
-
-func bToMb(b uint64) uint64 {
-	return b / 1024 / 1024
 }
